@@ -5,6 +5,7 @@
  * createAgentSession() options. The SDK does the heavy lifting.
  */
 
+import { fstatSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { type Api, type ImageContent, type Model, modelsAreEqual } from "@earendil-works/pi-ai";
@@ -127,12 +128,13 @@ import { handleConfigCommand } from "./package-manager-cli.js";
 import { isLocalPath } from "./utils/paths.js";
 
 /**
- * Read all content from piped stdin.
- * Returns undefined if stdin is a TTY (interactive terminal).
+ * Read all content from piped or redirected stdin.
+ * Returns undefined unless stdin is a pipe or a file. An inherited socket,
+ * such as a supervising process's stdin, may never end, so it is not read.
  */
 async function readPipedStdin(): Promise<string | undefined> {
-	// If stdin is a TTY, we're running interactively - don't read stdin
-	if (process.stdin.isTTY) {
+	const stat = fstatSync(0);
+	if (!stat.isFIFO() && !stat.isFile()) {
 		return undefined;
 	}
 
